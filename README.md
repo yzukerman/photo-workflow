@@ -1,6 +1,6 @@
 # Photo Workflow
 
-`photo-workflow` is a portable Python CLI that sorts images in a folder into `pass` and `fail` subfolders using local-only image quality analysis.
+`photo-workflow` is a portable Python CLI that sorts images in a folder into `pass` and `fail` subfolders using local-only image quality analysis. The tool was created using OpenAI Codex 5.5 medium via the CLI.
 
 ## What It Checks
 
