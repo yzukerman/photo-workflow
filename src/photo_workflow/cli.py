@@ -20,6 +20,7 @@ IMAGE_EXTENSIONS = {
     ".gif",
     ".heic",
     ".heif",
+    ".hif",
     ".jpeg",
     ".jpg",
     ".png",
@@ -53,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         thresholds=thresholds,
         quality_model=quality_model,
         dry_run=args.dry_run,
+        show_progress=not args.no_progress,
     )
     print(_format_results(results, args.dry_run))
     return 0
@@ -67,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pass-dir", default="pass", help="Subfolder for passing images.")
     parser.add_argument("--fail-dir", default="fail", help="Subfolder for failing images.")
     parser.add_argument("--dry-run", action="store_true", help="Analyze without moving files.")
+    parser.add_argument("--no-progress", action="store_true", help="Disable progress output.")
     parser.add_argument(
         "--calibration-folder",
         type=Path,
@@ -96,23 +99,25 @@ def sort_images(
     thresholds: QualityThresholds | None = None,
     quality_model: QualityModel | None = DEFAULT_QUALITY_MODEL,
     dry_run: bool = False,
+    show_progress: bool = False,
 ) -> list[ImageAssessment]:
     thresholds = thresholds or QualityThresholds()
     pass_dir = source / pass_dir_name
     fail_dir = source / fail_dir_name
     results: list[ImageAssessment] = []
 
-    candidates = [
-        path
-        for path in sorted(source.iterdir())
-        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
-    ]
+    candidates = _find_image_candidates(source, pass_dir_name, fail_dir_name)
 
     if not dry_run:
         pass_dir.mkdir(exist_ok=True)
         fail_dir.mkdir(exist_ok=True)
 
-    for path in candidates:
+    for index, path in enumerate(candidates, start=1):
+        if show_progress:
+            print(
+                f"Processing {index}/{len(candidates)}: {path.relative_to(source)}",
+                file=sys.stderr,
+            )
         try:
             assessment = assess_image(path, thresholds, quality_model)
         except OSError:
@@ -131,7 +136,23 @@ def sort_images(
             shutil.move(str(path), _available_destination(destination_dir, path.name))
         results.append(assessment)
 
+    if not dry_run:
+        _write_fail_report(source, fail_dir, results)
+
     return results
+
+
+def _find_image_candidates(source: Path, pass_dir_name: str, fail_dir_name: str) -> list[Path]:
+    output_dir_names = {pass_dir_name, fail_dir_name}
+    candidates = []
+    for path in sorted(source.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
+            continue
+        relative_parts = path.relative_to(source).parts
+        if any(part in output_dir_names for part in relative_parts[:-1]):
+            continue
+        candidates.append(path)
+    return candidates
 
 
 def _load_quality_model(args: argparse.Namespace) -> QualityModel | None:
@@ -153,6 +174,51 @@ def _available_destination(destination_dir: Path, filename: str) -> Path:
         destination = destination_dir / f"{Path(filename).stem}_{counter}{Path(filename).suffix}"
         counter += 1
     return destination
+
+
+def _write_fail_report(source: Path, fail_dir: Path, results: list[ImageAssessment]) -> None:
+    failed = [result for result in results if not result.passed]
+    report_path = fail_dir / "failure-report.md"
+    lines = [
+        "# Failure Report",
+        "",
+        f"Failed images: {len(failed)}",
+        "",
+    ]
+    if failed:
+        lines.extend(
+            [
+                "| Image | Original Path | Reasons | Blur Score | Mean Luminance | Dark Clip | Light Clip |",
+                "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for result in failed:
+            try:
+                original_path = result.path.relative_to(source)
+            except ValueError:
+                original_path = result.path
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _escape_markdown(result.path.name),
+                        _escape_markdown(str(original_path)),
+                        _escape_markdown(", ".join(result.reasons) or "unknown"),
+                        f"{result.blur_score:.2f}",
+                        f"{result.mean_luminance:.2f}",
+                        f"{result.clipped_dark_ratio:.3f}",
+                        f"{result.clipped_light_ratio:.3f}",
+                    ]
+                )
+                + " |"
+            )
+    else:
+        lines.append("No failed images.")
+    report_path.write_text("\n".join(lines) + "\n")
+
+
+def _escape_markdown(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|")
 
 
 def _format_results(results: list[ImageAssessment], dry_run: bool) -> str:

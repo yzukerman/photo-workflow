@@ -12,3 +12,5 @@ The model intentionally favors efficiency and portability over large neural netw
 Calibration treats `false-negatives/` as additional pass examples. Low-confidence model decisions are pass-biased so uncertain images are retained for review instead of discarded.
 
 Calibration can also consume `false-positives/` and `Test *` folders. Within test-run folders, files containing `-bad` in their names are treated as rejected examples.
+
+The CLI supports Pillow-readable raster formats only. RAW camera files are intentionally out of scope for this version.

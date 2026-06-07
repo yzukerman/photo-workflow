@@ -149,5 +149,6 @@ def _is_supported_image(path: Path) -> bool:
     return (
         path.is_file()
         and not path.name.startswith(".")
-        and path.suffix.lower() in {".jpg", ".jpeg", ".heic", ".heif", ".png", ".webp", ".tif", ".tiff"}
+        and path.suffix.lower()
+        in {".jpg", ".jpeg", ".heic", ".heif", ".hif", ".png", ".webp", ".tif", ".tiff"}
     )

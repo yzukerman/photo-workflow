@@ -7,7 +7,8 @@
 - **Blur/focus**: calibrated local quality model using multi-scale Laplacian focus features.
 - **Exposure**: average luminance and clipped shadow/highlight ratios.
 - **Local execution**: no network calls, cloud APIs, telemetry, or remote model downloads.
-- **Supported formats**: JPEG/JPG, HEIC/HEIF, PNG, TIFF, WebP, GIF, and BMP.
+- **Supported formats**: JPEG/JPG, HEIC/HEIF/HIF, PNG, TIFF, WebP, GIF, and BMP.
+- **Unsupported formats**: RAW camera files are not supported.
 - **Lightweight model**: tiny local k-nearest-neighbor quality model calibrated from labeled examples, implemented with Pillow, pillow-heif, and Python standard library code.
 
 ## Usage
@@ -25,9 +26,13 @@ uv run photo-workflow /path/to/images --blur-threshold 90 --min-mean 45 --max-me
 uv run photo-workflow /path/to/images --calibration-folder "Sample images" --save-model quality-model.json
 ```
 
-By default, passing JPEG and HEIC images are moved into `pass/`; failing images are moved into `fail/` inside the input folder.
+By default, passing JPEG and HEIC/HEIF/HIF images are moved into `pass/`; failing images are moved into `fail/` inside the input folder.
 
 Calibration uses `pass/` and `false-negatives/` as accepted examples, plus `fail/` and `false-positives/` as rejected examples. In `Test *` folders, filenames containing `-bad` are rejected examples and the remaining images are accepted examples.
+
+The CLI scans nested folders recursively, flattens accepted/rejected images into the configured `pass/` and `fail/` folders, does not group failures by reason, and skips existing output folders on repeated runs. Progress is written to stderr and can be disabled with `--no-progress`.
+
+Each run writes `failure-report.md` in the fail folder. The report lists every rejected image, its original relative path, rejection reasons, and the measured blur/exposure statistics.
 
 ## Development
 
@@ -42,19 +47,16 @@ The application is designed to be portable across macOS, Linux, and Windows by u
 ## Success Criteria
 
 - Accepts an image folder path from the command line.
-- Analyzes local JPEG/JPG and HEIC/HEIF files without remote services.
+- Scans nested folders recursively.
+- Analyzes local JPEG/JPG and HEIC/HEIF/HIF files without remote services.
+- Does not support RAW camera files.
 - Detects blur, overexposure, and underexposure.
 - Moves each analyzed image to a pass or fail subfolder.
+- Writes `failure-report.md` in the fail folder with per-image failure reasons.
+- Shows command-line progress during analysis.
 - Treats unreadable image files as failures instead of silently dropping them.
 - Supports dry-run mode for safe inspection.
 - Uses Python packaging and execution through uv.
 - Has automated tests for analyzer behavior and CLI file movement.
 - Has automated checks proving no heavy ML or network/cloud runtime dependencies are used.
 - Correctly classifies the labeled `Sample images/pass`, `Sample images/fail`, and `Sample images/false-negatives` examples.
-
-## Review Questions
-
-- Should scanning include nested folders or only direct children of the input folder?
-- Should RAW camera formats be supported, or are Pillow-supported formats enough?
-- Should the default thresholds be conservative and reject borderline photos, or permissive and keep borderline photos?
-- Should failed images be grouped by reason, such as `fail/blurry`, `fail/too_dark`, and `fail/too_light`?
