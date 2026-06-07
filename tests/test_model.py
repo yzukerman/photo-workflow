@@ -85,8 +85,9 @@ def test_cli_sorting_matches_labeled_sample_images(tmp_path: Path) -> None:
 
     sort_images(input_folder)
 
-    assert len(list((input_folder / "pass").iterdir())) == expected_counts["pass"]
-    assert len(list((input_folder / "fail").iterdir())) == expected_counts["fail"]
+    assert _count_image_files(input_folder / "pass") == expected_counts["pass"]
+    assert _count_image_files(input_folder / "fail") == expected_counts["fail"]
+    assert (input_folder / "fail" / "failure-report.md").exists()
 
 
 def test_default_quality_model_rejects_test_run_bad_images() -> None:
@@ -99,3 +100,12 @@ def test_default_quality_model_rejects_test_run_bad_images() -> None:
 
     assert bad_images
     assert errors == []
+
+
+def _count_image_files(folder: Path) -> int:
+    return sum(
+        1
+        for path in folder.iterdir()
+        if path.suffix.lower()
+        in {".jpg", ".jpeg", ".heic", ".heif", ".hif", ".png", ".webp", ".tif", ".tiff"}
+    )
