@@ -20,7 +20,7 @@ def test_assess_image_passes_sharp_balanced_image(tmp_path: Path) -> None:
     image_path = tmp_path / "sharp.png"
     save_checkerboard(image_path)
 
-    result = assess_image(image_path)
+    result = assess_image(image_path, quality_model=None)
 
     assert result.passed
     assert result.reasons == ()

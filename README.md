@@ -27,6 +27,8 @@ uv run photo-workflow /path/to/images --calibration-folder "Sample images" --sav
 
 By default, passing JPEG and HEIC images are moved into `pass/`; failing images are moved into `fail/` inside the input folder.
 
+Calibration uses `pass/` and `false-negatives/` as accepted examples, plus `fail/` and `false-positives/` as rejected examples. In `Test *` folders, filenames containing `-bad` are rejected examples and the remaining images are accepted examples.
+
 ## Development
 
 Run tests through uv:
@@ -48,7 +50,7 @@ The application is designed to be portable across macOS, Linux, and Windows by u
 - Uses Python packaging and execution through uv.
 - Has automated tests for analyzer behavior and CLI file movement.
 - Has automated checks proving no heavy ML or network/cloud runtime dependencies are used.
-- Correctly classifies the labeled `Sample images/pass` and `Sample images/fail` examples.
+- Correctly classifies the labeled `Sample images/pass`, `Sample images/fail`, and `Sample images/false-negatives` examples.
 
 ## Review Questions
 

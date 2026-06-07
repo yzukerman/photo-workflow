@@ -16,7 +16,8 @@ DEFAULT_QUALITY_MODEL = load_default_quality_model()
 @dataclass(frozen=True)
 class QualityThresholds:
     blur_threshold: float = 75.0
-    min_mean: float = 35.0
+    absolute_blur_floor: float = 5.0
+    min_mean: float = 30.0
     max_mean: float = 220.0
     max_clipped_dark_ratio: float = 0.35
     max_clipped_light_ratio: float = 0.35
@@ -44,7 +45,9 @@ def assess_image(
         features = extract_quality_features(image, thresholds.analysis_size)
 
     reasons: list[str] = []
-    if features.blur_score < thresholds.blur_threshold:
+    if features.blur_score < thresholds.absolute_blur_floor:
+        reasons.append("blurry")
+    elif quality_model is None and features.blur_score < thresholds.blur_threshold:
         reasons.append("blurry")
     if quality_model is not None and not quality_model.predict(features).passed:
         reasons.append("quality_model")

@@ -45,8 +45,12 @@ def test_default_quality_model_classifies_labeled_sample_images() -> None:
         pytest.skip("labeled sample images are not available")
 
     errors = []
-    for expected_label in ("pass", "fail"):
-        for image_path in sorted((sample_root / expected_label).iterdir()):
+    sample_groups = (("pass", "pass"), ("false-negatives", "pass"), ("fail", "fail"))
+    for folder_name, expected_label in sample_groups:
+        sample_folder = sample_root / folder_name
+        if not sample_folder.exists():
+            continue
+        for image_path in sorted(sample_folder.iterdir()):
             if not image_path.is_file() or image_path.name.startswith("."):
                 continue
             assessment = assess_image(image_path)
@@ -65,13 +69,17 @@ def test_cli_sorting_matches_labeled_sample_images(tmp_path: Path) -> None:
     input_folder = tmp_path / "input"
     input_folder.mkdir()
     expected_counts = {}
-    for expected_label in ("pass", "fail"):
+    sample_groups = (("pass", "pass"), ("false-negatives", "pass"), ("fail", "fail"))
+    for folder_name, expected_label in sample_groups:
+        sample_folder = sample_root / folder_name
+        if not sample_folder.exists():
+            continue
         labeled_images = [
             image_path
-            for image_path in sorted((sample_root / expected_label).iterdir())
+            for image_path in sorted(sample_folder.iterdir())
             if image_path.is_file() and not image_path.name.startswith(".")
         ]
-        expected_counts[expected_label] = len(labeled_images)
+        expected_counts[expected_label] = expected_counts.get(expected_label, 0) + len(labeled_images)
         for image_path in labeled_images:
             shutil.copy(image_path, input_folder / image_path.name)
 
@@ -79,3 +87,15 @@ def test_cli_sorting_matches_labeled_sample_images(tmp_path: Path) -> None:
 
     assert len(list((input_folder / "pass").iterdir())) == expected_counts["pass"]
     assert len(list((input_folder / "fail").iterdir())) == expected_counts["fail"]
+
+
+def test_default_quality_model_rejects_test_run_bad_images() -> None:
+    test_run = Path("Sample images/Test 3")
+    if not test_run.exists():
+        pytest.skip("Test 3 sample images are not available")
+
+    bad_images = sorted(path for path in test_run.rglob("*-bad.*") if path.is_file())
+    errors = [image_path.name for image_path in bad_images if assess_image(image_path).passed]
+
+    assert bad_images
+    assert errors == []
